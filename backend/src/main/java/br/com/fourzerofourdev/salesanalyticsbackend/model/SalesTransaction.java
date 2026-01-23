@@ -17,7 +17,7 @@ public class SalesTransaction {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "customer_id", referencedColumnName = "externalId")
+    @JoinColumn(name = "customer_id")
     private Customer customer;
 
     @Column(nullable = false)

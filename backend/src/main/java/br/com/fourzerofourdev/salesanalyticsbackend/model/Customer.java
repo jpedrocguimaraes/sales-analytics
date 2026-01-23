@@ -14,11 +14,13 @@ import java.util.UUID;
 public class Customer {
 
     @Id
-    @Column(unique = true, nullable = false)
-    private UUID externalId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(nullable = false)
     private String username;
+
+    private String lastExternalId;
 
     private LocalDateTime lastSeen;
 

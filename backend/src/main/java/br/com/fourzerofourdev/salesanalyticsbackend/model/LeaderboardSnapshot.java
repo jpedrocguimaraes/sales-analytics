@@ -17,7 +17,7 @@ public class LeaderboardSnapshot {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "customer_id", referencedColumnName = "externalId")
+    @JoinColumn(name = "customer_id")
     private Customer customer;
 
     private double totalAccumulated;

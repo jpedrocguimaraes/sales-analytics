@@ -1,7 +1,6 @@
 package br.com.fourzerofourdev.salesanalyticsbackend.dto;
 
-public record PlayerDTO(
-        String id,
+public record TopDonorDTO(
         String username,
         Double total
 ) {}

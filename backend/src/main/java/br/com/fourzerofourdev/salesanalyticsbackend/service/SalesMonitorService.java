@@ -69,13 +69,13 @@ public class SalesMonitorService {
     }
 
     private void processPlayer(PlayerDTO player, LocalDateTime now) {
-        Customer customer = customerRepository.findById(player.id())
+        Customer customer = customerRepository.findByUsername(player.username())
                 .orElseGet(() -> {
                     LOGGER.info("New customer found: {}", player.username());
 
                     return customerRepository.save(Customer.builder()
-                            .externalId(player.id())
                             .username(player.username())
+                            .lastExternalId(player.id())
                             .lastSeen(now)
                             .build());
                 });

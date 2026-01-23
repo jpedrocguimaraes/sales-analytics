@@ -1,0 +1,99 @@
+package br.com.fourzerofourdev.salesanalyticsbackend.service;
+
+import br.com.fourzerofourdev.salesanalyticsbackend.dto.ChartDataDTO;
+import br.com.fourzerofourdev.salesanalyticsbackend.dto.DashboardSummaryDTO;
+import br.com.fourzerofourdev.salesanalyticsbackend.dto.TopDonorDTO;
+import br.com.fourzerofourdev.salesanalyticsbackend.model.SalesTransaction;
+import br.com.fourzerofourdev.salesanalyticsbackend.repository.SalesTransactionRepository;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Service
+public class DashboardService {
+
+    private final SalesTransactionRepository salesTransactionRepository;
+
+    public DashboardService(SalesTransactionRepository salesTransactionRepository) {
+        this.salesTransactionRepository = salesTransactionRepository;
+    }
+
+    public DashboardSummaryDTO getSummary(LocalDateTime start, LocalDateTime end) {
+        Double totalValue = salesTransactionRepository.sumTotalBetween(start, end);
+        BigDecimal total = BigDecimal.valueOf(totalValue != null ? totalValue : 0.0);
+
+        long count = salesTransactionRepository.countByTimestampBetween(start, end);
+
+        BigDecimal averageTicket = count > 0 ? total.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+
+        List<TopDonorDTO> topDonors = salesTransactionRepository.findTopDonorsBetween(start, end);
+        TopDonorDTO topDonor = topDonors.isEmpty() ? null : topDonors.getFirst();
+
+        BigDecimal projection = BigDecimal.ZERO;
+        long daysDiff = Duration.between(start, end).toDays();
+
+        if(daysDiff >= 28 && end.isAfter(LocalDateTime.now())) {
+            long daysPassed = Duration.between(start, LocalDateTime.now()).toDays();
+
+            if(daysPassed > 0) {
+                projection = total.divide(BigDecimal.valueOf(daysPassed), 2, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(daysDiff));
+            }
+        }
+
+        return new DashboardSummaryDTO(total, averageTicket, count, topDonor, projection);
+    }
+
+    public List<TopDonorDTO> getRanking(LocalDateTime start, LocalDateTime end) {
+        return salesTransactionRepository.findTopDonorsBetween(start, end);
+    }
+
+    public ChartDataDTO getHourlySales(LocalDateTime start, LocalDateTime end) {
+        List<SalesTransaction> transactions = salesTransactionRepository.findAllByTimestampBetweenOrderByTimestampAsc(start, end);
+
+        double[] hourlySums = new double[24];
+
+        for(SalesTransaction transaction : transactions) {
+            int hour = transaction.getTimestamp().getHour();
+            hourlySums[hour] += transaction.getAmount();
+        }
+
+        List<String> labels = new ArrayList<>();
+        List<Number> data = new ArrayList<>();
+
+        for(int i = 0; i < 24; i++) {
+            labels.add(String.format("%02d:00", i));
+            data.add(hourlySums[i]);
+        }
+
+        return new ChartDataDTO(labels, data);
+    }
+
+    public Map<String, Long> getWhaleAnalysis(LocalDateTime start, LocalDateTime end) {
+        List<TopDonorDTO> topDonors = salesTransactionRepository.findTopDonorsBetween(start, end);
+
+        long whales = 0;
+        long dolphins = 0;
+        long fish = 0;
+
+        for(TopDonorDTO topDonor : topDonors) {
+            double value = topDonor.total() != null ? topDonor.total() : 0.0;
+            if(value >= 2500) whales++;
+            else if(value >= 1000) dolphins++;
+            else fish++;
+        }
+
+        Map<String, Long> result = new HashMap<>();
+        result.put("Whales (>2.5k)", whales);
+        result.put("Dolphins (>1k)", dolphins);
+        result.put("Minnows (<1k)", fish);
+
+        return result;
+    }
+}
