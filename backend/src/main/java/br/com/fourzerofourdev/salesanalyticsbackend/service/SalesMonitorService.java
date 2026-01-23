@@ -95,7 +95,9 @@ public class SalesMonitorService {
         if(lastSnapshotOptional.isPresent()) {
             double delta = currentTotal - previousTotal;
 
-            if(delta > 0.01) {
+            double tolerance = 0.01;
+
+            if(delta > tolerance) {
                 LOGGER.info("New sales for customer {}: {}", customer.getUsername(), delta);
 
                 salesTransactionRepository.save(SalesTransaction.builder()
@@ -103,7 +105,7 @@ public class SalesMonitorService {
                         .amount(delta)
                         .timestamp(now)
                         .build());
-            } else if(delta < 0) {
+            } else if(delta < -tolerance) {
                 LOGGER.warn("Negative sales for customer {}: {}", customer.getUsername(), delta);
             }
         } else {
