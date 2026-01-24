@@ -3,6 +3,9 @@ package br.com.fourzerofourdev.salesanalyticsbackend.controller;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.CustomerSummaryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.CustomerTransactionHistoryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.service.CustomerService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,8 +22,8 @@ public class CustomerController {
     }
 
     @GetMapping
-    public List<CustomerSummaryDTO> getAllCustomers() {
-        return customerService.getAllCustomers();
+    public Page<CustomerSummaryDTO> getAllCustomers(@PageableDefault(sort = "username") Pageable pageable) {
+        return customerService.getAllCustomers(pageable);
     }
 
     @GetMapping("/{username}/history")

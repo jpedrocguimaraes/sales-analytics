@@ -4,6 +4,8 @@ import br.com.fourzerofourdev.salesanalyticsbackend.dto.CustomerSummaryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.CustomerTransactionHistoryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.CustomerRepository;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.SalesTransactionRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,8 +23,8 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
-    public List<CustomerSummaryDTO> getAllCustomers() {
-        return customerRepository.findAllCustomerSummaries();
+    public Page<CustomerSummaryDTO> getAllCustomers(Pageable pageable) {
+        return customerRepository.findAllCustomerSummaries(pageable);
     }
 
     @Transactional(readOnly = true)
