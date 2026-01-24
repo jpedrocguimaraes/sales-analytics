@@ -3,7 +3,9 @@ package br.com.fourzerofourdev.salesanalyticsbackend.service;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.ChartDataDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.DashboardSummaryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.TopDonorDTO;
+import br.com.fourzerofourdev.salesanalyticsbackend.model.LeaderboardSnapshot;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.SalesTransaction;
+import br.com.fourzerofourdev.salesanalyticsbackend.repository.LeaderboardSnapshotRepository;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.SalesTransactionRepository;
 import org.springframework.stereotype.Service;
 
@@ -20,9 +22,11 @@ import java.util.Map;
 public class DashboardService {
 
     private final SalesTransactionRepository salesTransactionRepository;
+    private final LeaderboardSnapshotRepository leaderboardSnapshotRepository;
 
-    public DashboardService(SalesTransactionRepository salesTransactionRepository) {
+    public DashboardService(SalesTransactionRepository salesTransactionRepository, LeaderboardSnapshotRepository leaderboardSnapshotRepository) {
         this.salesTransactionRepository = salesTransactionRepository;
+        this.leaderboardSnapshotRepository = leaderboardSnapshotRepository;
     }
 
     public DashboardSummaryDTO getSummary(LocalDateTime start, LocalDateTime end) {
@@ -51,7 +55,11 @@ public class DashboardService {
             }
         }
 
-        return new DashboardSummaryDTO(total, averageTicket, count, topDonor, projection);
+        LocalDateTime lastUpdate = leaderboardSnapshotRepository.findTopByOrderBySnapshotTimeDesc()
+                .map(LeaderboardSnapshot::getSnapshotTime)
+                .orElse(LocalDateTime.now());
+
+        return new DashboardSummaryDTO(total, averageTicket, count, topDonor, projection, lastUpdate);
     }
 
     public List<TopDonorDTO> getRanking(LocalDateTime start, LocalDateTime end) {
