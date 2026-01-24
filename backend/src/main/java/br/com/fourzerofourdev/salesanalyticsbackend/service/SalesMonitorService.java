@@ -11,6 +11,8 @@ import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -40,7 +42,8 @@ public class SalesMonitorService {
         this.restClient = RestClient.create();
     }
 
-    @Scheduled(fixedDelay = 600000, initialDelay = 5000)
+    @Scheduled(cron = "0 0/5 * * * *")
+    @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void fetchAndProcessLeaderboard() {
         LOGGER.info("Fetching leaderboard from {}", targetUrl);
