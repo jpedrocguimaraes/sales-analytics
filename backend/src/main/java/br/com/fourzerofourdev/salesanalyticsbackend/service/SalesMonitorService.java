@@ -10,7 +10,6 @@ import br.com.fourzerofourdev.salesanalyticsbackend.repository.CustomerRepositor
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.ExecutionLogRepository;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.LeaderboardSnapshotRepository;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.SalesTransactionRepository;
-import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,13 +51,13 @@ public class SalesMonitorService {
 
     @Scheduled(cron = "0 0/5 * * * *")
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional
     public void fetchAndProcessSalesData() {
         LOGGER.info("Starting scheduled execution...");
         LocalDateTime start = LocalDateTime.now();
 
         int newCustomers = 0;
         int newSales = 0;
+        int processingErrors = 0;
         ExecutionStatus status = ExecutionStatus.SUCCESS;
         String errorMessage = null;
 
@@ -75,28 +74,41 @@ public class SalesMonitorService {
                 LocalDateTime now = LocalDateTime.now();
 
                 for(ExternalCustomerDTO customer : customers) {
-                    ProcessResult result = processCustomer(customer, now);
-                    if(result.isNewCustomer) newCustomers++;
-                    if(result.isNewSale) newSales++;
+                    try {
+                        ProcessResult result = processCustomer(customer, now);
+                        if(result.isNewCustomer) newCustomers++;
+                        if(result.isNewSale) newSales++;
+                    } catch(Exception exception) {
+                        processingErrors++;
+                        LOGGER.error("Error processing customer {}: {}", customer.username(), exception.getMessage());
+                    }
                 }
 
-                LOGGER.info("Execution finished. New Customers: {}, New Sales: {}", newCustomers, newSales);
+                if(processingErrors > 0) {
+                    if(processingErrors == customers.size()) {
+                        status = ExecutionStatus.FAILURE;
+                        errorMessage = "All records failed to process";
+                    } else {
+                        status = ExecutionStatus.PARTIAL_FAILURE;
+                        errorMessage = processingErrors + " records failed out of " + customers.size();
+                    }
+                }
+
+                LOGGER.info("Execution finished. Success: {}, Errors: {}", (customers.size() - processingErrors), processingErrors);
             }
         } catch(Exception exception) {
             LOGGER.error("Critical error during execution", exception);
             status = ExecutionStatus.FAILURE;
             errorMessage = exception.getMessage();
+        } finally {
             if(errorMessage != null && errorMessage.length() > 900) {
                 errorMessage = errorMessage.substring(0, 900) + "...";
             }
-        } finally {
-            LocalDateTime end = LocalDateTime.now();
-            long duration = ChronoUnit.MILLIS.between(start, end);
 
             ExecutionLog log = ExecutionLog.builder()
                     .startTime(start)
-                    .endTime(end)
-                    .durationMs(duration)
+                    .endTime(LocalDateTime.now())
+                    .durationMs(ChronoUnit.MILLIS.between(start, LocalDateTime.now()))
                     .status(status)
                     .newCustomersCount(newCustomers)
                     .newSalesCount(newSales)
