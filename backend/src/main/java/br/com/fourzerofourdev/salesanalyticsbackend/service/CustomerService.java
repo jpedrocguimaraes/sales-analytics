@@ -5,7 +5,10 @@ import br.com.fourzerofourdev.salesanalyticsbackend.dto.CustomerTransactionHisto
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.CustomerRepository;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.SalesTransactionRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.JpaSort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +27,30 @@ public class CustomerService {
 
     @Transactional(readOnly = true)
     public Page<CustomerSummaryDTO> getAllCustomers(Pageable pageable) {
-        return customerRepository.findAllCustomerSummaries(pageable);
+        Sort originalSort = pageable.getSort();
+
+        if(originalSort.isUnsorted()) {
+            return customerRepository.findAllCustomerSummaries(pageable);
+        }
+
+        Sort.Order order = originalSort.iterator().next();
+        String property = order.getProperty();
+        Sort.Direction direction = order.getDirection();
+
+        String jpqlProperty = switch(property) {
+            case "totalSpent" -> "COALESCE(SUM(t.amount), 0)";
+            case "purchaseCount" -> "COUNT(t.id)";
+            case "lastPurchaseDate" -> "MAX(t.timestamp)";
+            default -> "c.username";
+        };
+
+        Pageable newPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                JpaSort.unsafe(direction, jpqlProperty)
+        );
+
+        return customerRepository.findAllCustomerSummaries(newPageable);
     }
 
     @Transactional(readOnly = true)
