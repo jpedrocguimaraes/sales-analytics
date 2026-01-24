@@ -37,13 +37,17 @@ public class DashboardService {
         TopDonorDTO topDonor = topDonors.isEmpty() ? null : topDonors.getFirst();
 
         BigDecimal projection = BigDecimal.ZERO;
-        long daysDiff = Duration.between(start, end).toDays();
+        LocalDateTime now = LocalDateTime.now();
 
-        if(daysDiff >= 28 && end.isAfter(LocalDateTime.now())) {
-            long daysPassed = Duration.between(start, LocalDateTime.now()).toDays();
+        if(end.isAfter(now) && start.isBefore(now)) {
+            long totalSecondsInPeriod = Duration.between(start, end).getSeconds();
+            long elapsedSeconds = Duration.between(start, now).getSeconds();
 
-            if(daysPassed > 0) {
-                projection = total.divide(BigDecimal.valueOf(daysPassed), 2, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(daysDiff));
+            if(elapsedSeconds > 0) {
+                projection = total
+                        .divide(BigDecimal.valueOf(elapsedSeconds), 10, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(totalSecondsInPeriod))
+                        .setScale(2, RoundingMode.HALF_UP);
             }
         }
 
