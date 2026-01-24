@@ -1,5 +1,6 @@
 package br.com.fourzerofourdev.salesanalyticsbackend.repository;
 
+import br.com.fourzerofourdev.salesanalyticsbackend.dto.CustomerTransactionHistoryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.TopDonorDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.SalesTransaction;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -27,4 +28,14 @@ public interface SalesTransactionRepository extends JpaRepository<SalesTransacti
     List<TopDonorDTO> findTopDonorsBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     List<SalesTransaction> findAllByTimestampBetweenOrderByTimestampAsc(LocalDateTime start, LocalDateTime end);
+
+    @Query("""
+        SELECT new br.com.fourzerofourdev.salesanalyticsbackend.dto.CustomerTransactionHistoryDTO(
+            t.id, t.amount, t.timestamp
+        )
+        FROM SalesTransaction t
+        WHERE t.customer.username = :username
+        ORDER BY t.timestamp DESC
+    """)
+    List<CustomerTransactionHistoryDTO> findHistoryByUsername(String username);
 }

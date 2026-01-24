@@ -1,6 +1,6 @@
 package br.com.fourzerofourdev.salesanalyticsbackend.service;
 
-import br.com.fourzerofourdev.salesanalyticsbackend.dto.PlayerDTO;
+import br.com.fourzerofourdev.salesanalyticsbackend.dto.ExternalCustomerDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.Customer;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.LeaderboardSnapshot;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.SalesTransaction;
@@ -49,7 +49,7 @@ public class SalesMonitorService {
         LOGGER.info("Fetching leaderboard from {}", targetUrl);
 
         try {
-            List<PlayerDTO> players = restClient.get()
+            List<ExternalCustomerDTO> players = restClient.get()
                     .uri(targetUrl)
                     .retrieve()
                     .body(new ParameterizedTypeReference<>() {});
@@ -61,7 +61,7 @@ public class SalesMonitorService {
 
             LocalDateTime now = LocalDateTime.now();
 
-            for(PlayerDTO player : players) {
+            for(ExternalCustomerDTO player : players) {
                 processPlayer(player, now);
             }
 
@@ -71,7 +71,7 @@ public class SalesMonitorService {
         }
     }
 
-    private void processPlayer(PlayerDTO player, LocalDateTime now) {
+    private void processPlayer(ExternalCustomerDTO player, LocalDateTime now) {
         Customer customer = customerRepository.findByUsername(player.username())
                 .orElseGet(() -> {
                     LOGGER.info("New customer found: {}", player.username());
