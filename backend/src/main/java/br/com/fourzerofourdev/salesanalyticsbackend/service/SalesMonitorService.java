@@ -45,46 +45,46 @@ public class SalesMonitorService {
     @Scheduled(cron = "0 0/5 * * * *")
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
-    public void fetchAndProcessLeaderboard() {
-        LOGGER.info("Fetching leaderboard from {}", targetUrl);
+    public void fetchAndProcessSalesData() {
+        LOGGER.info("Fetching customer data from {}", targetUrl);
 
         try {
-            List<ExternalCustomerDTO> players = restClient.get()
+            List<ExternalCustomerDTO> customers = restClient.get()
                     .uri(targetUrl)
                     .retrieve()
                     .body(new ParameterizedTypeReference<>() {});
 
-            if(players == null || players.isEmpty()) {
-                LOGGER.warn("No players found in leaderboard");
+            if(customers == null || customers.isEmpty()) {
+                LOGGER.warn("No customers found in leaderboard");
                 return;
             }
 
             LocalDateTime now = LocalDateTime.now();
 
-            for(ExternalCustomerDTO player : players) {
-                processPlayer(player, now);
+            for(ExternalCustomerDTO customer : customers) {
+                processCustomer(customer, now);
             }
 
-            LOGGER.info("Leaderboard processed successfully. Total players: {}", players.size());
+            LOGGER.info("Sales data processed successfully. Total customers: {}", customers.size());
         } catch(Exception exception) {
-            LOGGER.error("Error processing leaderboard", exception);
+            LOGGER.error("Error processing sales data", exception);
         }
     }
 
-    private void processPlayer(ExternalCustomerDTO player, LocalDateTime now) {
-        Customer customer = customerRepository.findByUsername(player.username())
+    private void processCustomer(ExternalCustomerDTO customerDTO, LocalDateTime now) {
+        Customer customer = customerRepository.findByUsername(customerDTO.username())
                 .orElseGet(() -> {
-                    LOGGER.info("New customer found: {}", player.username());
+                    LOGGER.info("New customer found: {}", customerDTO.username());
 
                     return customerRepository.save(Customer.builder()
-                            .username(player.username())
-                            .lastExternalId(player.id())
+                            .username(customerDTO.username())
+                            .lastExternalId(customerDTO.id())
                             .lastSeen(now)
                             .build());
                 });
 
-        if(!customer.getUsername().equals(player.username())) {
-            customer.setUsername(player.username());
+        if(!customer.getUsername().equals(customerDTO.username())) {
+            customer.setUsername(customerDTO.username());
         }
 
         customer.setLastSeen(now);
@@ -92,7 +92,7 @@ public class SalesMonitorService {
 
         Optional<LeaderboardSnapshot> lastSnapshotOptional = leaderboardSnapshotRepository.findTopByCustomerOrderBySnapshotTimeDesc(customer);
 
-        double currentTotal = player.total();
+        double currentTotal = customerDTO.total();
         double previousTotal = lastSnapshotOptional.map(LeaderboardSnapshot::getTotalAccumulated).orElse(0.0);
 
         if(lastSnapshotOptional.isPresent()) {
@@ -112,7 +112,7 @@ public class SalesMonitorService {
                 LOGGER.warn("Negative sales for customer {}: {}", customer.getUsername(), delta);
             }
         } else {
-            LOGGER.info("New customer {} with total sales: {}", customer.getUsername(), currentTotal);
+            LOGGER.info("First snapshot for customer {}. Total history: {}", customer.getUsername(), currentTotal);
         }
 
         leaderboardSnapshotRepository.save(LeaderboardSnapshot.builder()
