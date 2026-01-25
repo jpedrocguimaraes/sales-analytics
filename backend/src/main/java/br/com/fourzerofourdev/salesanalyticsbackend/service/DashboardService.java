@@ -61,9 +61,24 @@ public class DashboardService {
             }
         }
 
-        LocalDateTime lastUpdate = leaderboardSnapshotRepository.findTopByOrderBySnapshotTimeDesc()
+        LocalDateTime lastSalesUpdate = leaderboardSnapshotRepository.findTopByOrderBySnapshotTimeDesc()
                 .map(LeaderboardSnapshot::getSnapshotTime)
-                .orElse(LocalDateTime.now());
+                .orElse(LocalDateTime.MIN);
+
+        LocalDateTime lastServerUpdate = serverStatusRepository.findTopByOrderByTimestampDesc()
+                .map(ServerStatusSnapshot::getTimestamp)
+                .orElse(LocalDateTime.MIN);
+
+        LocalDateTime lastUpdate;
+        if(lastSalesUpdate.isAfter(lastServerUpdate)) {
+            lastUpdate = lastSalesUpdate;
+        } else {
+            lastUpdate = lastServerUpdate;
+        }
+
+        if(lastUpdate.equals(LocalDateTime.MIN)) {
+            lastUpdate = LocalDateTime.now();
+        }
 
         return new DashboardSummaryDTO(total, averageTicket, count, topDonor, projection, lastUpdate);
     }
