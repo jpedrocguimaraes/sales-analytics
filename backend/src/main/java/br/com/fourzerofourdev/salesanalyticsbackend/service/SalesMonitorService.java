@@ -148,11 +148,10 @@ public class SalesMonitorService {
 
         double currentTotal = customerDTO.total();
         double previousTotal = lastSnapshotOptional.map(LeaderboardSnapshot::getTotalAccumulated).orElse(0.0);
+        double delta = currentTotal - previousTotal;
+        double tolerance = 0.01;
 
         if(lastSnapshotOptional.isPresent()) {
-            double delta = currentTotal - previousTotal;
-            double tolerance = 0.01;
-
             if(delta > tolerance) {
                 isNewSale = true;
                 LOGGER.info("New sales for customer {}: {}", customer.getUsername(), delta);
@@ -163,17 +162,33 @@ public class SalesMonitorService {
                         .timestamp(now)
                         .build());
             } else if(delta < -tolerance) {
-                LOGGER.warn("Negative sales for customer {}: {}", customer.getUsername(), delta);
+                LOGGER.warn("Reset detected for customer {}: {}", customer.getUsername(), delta);
             }
         } else {
             LOGGER.info("First snapshot for customer {}. Total history: {}", customer.getUsername(), currentTotal);
         }
 
-        leaderboardSnapshotRepository.save(LeaderboardSnapshot.builder()
-                .customer(customer)
-                .totalAccumulated(currentTotal)
-                .snapshotTime(now)
-                .build());
+        boolean hasChanged = Math.abs(delta) > tolerance;
+        boolean isFirstSnapshot = lastSnapshotOptional.isEmpty();
+        boolean isHeartbeatNeeded = false;
+
+        if(lastSnapshotOptional.isPresent()) {
+            isHeartbeatNeeded = lastSnapshotOptional.get().getSnapshotTime().isBefore(now.minusHours(6));
+        }
+
+        if(hasChanged || isFirstSnapshot || isHeartbeatNeeded) {
+            leaderboardSnapshotRepository.save(LeaderboardSnapshot.builder()
+                    .customer(customer)
+                    .totalAccumulated(currentTotal)
+                    .snapshotTime(now)
+                    .build());
+
+            if(!hasChanged && !isFirstSnapshot) {
+                LOGGER.debug("Heartbeat snapshot saved for {}", customer.getUsername());
+            }
+        } else {
+            LOGGER.debug("No changes for {}, skipping snapshot save.", customer.getUsername());
+        }
 
         return new ProcessResult(isNewCustomer, isNewSale);
     }

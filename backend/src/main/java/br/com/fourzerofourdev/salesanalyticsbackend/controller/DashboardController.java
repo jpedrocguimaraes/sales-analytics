@@ -2,6 +2,7 @@ package br.com.fourzerofourdev.salesanalyticsbackend.controller;
 
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.ChartDataDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.DashboardSummaryDTO;
+import br.com.fourzerofourdev.salesanalyticsbackend.dto.ServerAnalyticsDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.TopDonorDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.service.DashboardService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -53,6 +54,14 @@ public class DashboardController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
     ) {
         return dashboardService.getWhaleAnalysis(resolveStart(start), resolveEnd(end));
+    }
+
+    @GetMapping("/server-status")
+    public ServerAnalyticsDTO getServerStatus(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
+    ) {
+        return dashboardService.getServerAnalytics(resolveStart(start), resolveEnd(end));
     }
 
     private LocalDateTime resolveStart(LocalDateTime date) {

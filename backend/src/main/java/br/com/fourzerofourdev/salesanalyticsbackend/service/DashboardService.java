@@ -2,17 +2,21 @@ package br.com.fourzerofourdev.salesanalyticsbackend.service;
 
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.ChartDataDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.DashboardSummaryDTO;
+import br.com.fourzerofourdev.salesanalyticsbackend.dto.ServerAnalyticsDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.TopDonorDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.LeaderboardSnapshot;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.SalesTransaction;
+import br.com.fourzerofourdev.salesanalyticsbackend.model.ServerStatusSnapshot;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.LeaderboardSnapshotRepository;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.SalesTransactionRepository;
+import br.com.fourzerofourdev.salesanalyticsbackend.repository.ServerStatusRepository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -23,10 +27,12 @@ public class DashboardService {
 
     private final SalesTransactionRepository salesTransactionRepository;
     private final LeaderboardSnapshotRepository leaderboardSnapshotRepository;
+    private final ServerStatusRepository serverStatusRepository;
 
-    public DashboardService(SalesTransactionRepository salesTransactionRepository, LeaderboardSnapshotRepository leaderboardSnapshotRepository) {
+    public DashboardService(SalesTransactionRepository salesTransactionRepository, LeaderboardSnapshotRepository leaderboardSnapshotRepository, ServerStatusRepository serverStatusRepository) {
         this.salesTransactionRepository = salesTransactionRepository;
         this.leaderboardSnapshotRepository = leaderboardSnapshotRepository;
+        this.serverStatusRepository = serverStatusRepository;
     }
 
     public DashboardSummaryDTO getSummary(LocalDateTime start, LocalDateTime end) {
@@ -107,5 +113,30 @@ public class DashboardService {
         result.put("Minnows (<1k)", fish);
 
         return result;
+    }
+
+    public ServerAnalyticsDTO getServerAnalytics(LocalDateTime start, LocalDateTime end) {
+        ServerStatusSnapshot peak = serverStatusRepository.findPeakSnapshot(start, end);
+        ServerStatusSnapshot floor = serverStatusRepository.findFloorSnapshot(start, end);
+        Double averagePlayers = serverStatusRepository.findAveragePlayers(start, end);
+        List<ServerStatusSnapshot> history = serverStatusRepository.findAllByTimestampBetweenOrderByTimestampAsc(start, end);
+
+        List<String> labels = new ArrayList<>();
+        List<Number> data = new ArrayList<>();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM HH:mm");
+
+        for(ServerStatusSnapshot snapshot : history) {
+            labels.add(snapshot.getTimestamp().format(formatter));
+            data.add(snapshot.getOnlinePlayers());
+        }
+
+        return new ServerAnalyticsDTO(
+                peak != null ? peak.getOnlinePlayers() : 0,
+                floor != null ? floor.getOnlinePlayers() : 0,
+                peak != null ? peak.getTimestamp().format(DateTimeFormatter.ofPattern("HH:mm")) : "-",
+                averagePlayers != null ? averagePlayers : 0.0,
+                new ChartDataDTO(labels, data)
+        );
     }
 }
