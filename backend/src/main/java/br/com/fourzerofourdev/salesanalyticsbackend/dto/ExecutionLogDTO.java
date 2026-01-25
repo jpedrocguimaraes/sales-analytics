@@ -1,6 +1,7 @@
 package br.com.fourzerofourdev.salesanalyticsbackend.dto;
 
 import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.ExecutionStatus;
+import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.LogType;
 
 import java.time.LocalDateTime;
 
@@ -9,7 +10,9 @@ public record ExecutionLogDTO(
         LocalDateTime startTime,
         Long durationMs,
         ExecutionStatus status,
-        int newCustomersCount,
-        int newSalesCount,
+        LogType type,
+        Integer newCustomersCount,
+        Integer newSalesCount,
+        Integer onlinePlayersCount,
         String message
 ) {}

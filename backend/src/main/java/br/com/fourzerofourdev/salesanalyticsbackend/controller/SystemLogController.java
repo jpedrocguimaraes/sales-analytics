@@ -30,8 +30,10 @@ public class SystemLogController {
                         log.getStartTime(),
                         log.getDurationMs(),
                         log.getStatus(),
+                        log.getType(),
                         log.getNewCustomersCount(),
                         log.getNewSalesCount(),
+                        log.getOnlinePlayersCount(),
                         log.getMessage()
                 ));
     }

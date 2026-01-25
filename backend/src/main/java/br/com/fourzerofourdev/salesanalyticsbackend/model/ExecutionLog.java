@@ -1,6 +1,7 @@
 package br.com.fourzerofourdev.salesanalyticsbackend.model;
 
 import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.ExecutionStatus;
+import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.LogType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,9 +27,14 @@ public class ExecutionLog {
     @Enumerated(EnumType.STRING)
     private ExecutionStatus status;
 
-    private int newCustomersCount;
+    @Enumerated(EnumType.STRING)
+    private LogType type;
 
-    private int newSalesCount;
+    private Integer newCustomersCount;
+
+    private Integer newSalesCount;
+
+    private Integer onlinePlayersCount;
 
     @Column(columnDefinition = "TEXT", length = 1000)
     private String message;

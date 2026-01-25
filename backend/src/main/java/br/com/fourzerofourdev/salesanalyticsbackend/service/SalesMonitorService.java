@@ -6,6 +6,7 @@ import br.com.fourzerofourdev.salesanalyticsbackend.model.ExecutionLog;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.LeaderboardSnapshot;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.SalesTransaction;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.ExecutionStatus;
+import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.LogType;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.CustomerRepository;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.ExecutionLogRepository;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.LeaderboardSnapshotRepository;
@@ -108,6 +109,7 @@ public class SalesMonitorService {
             ExecutionLog log = ExecutionLog.builder()
                     .startTime(start)
                     .endTime(LocalDateTime.now())
+                    .type(LogType.SALES_CRAWLER)
                     .durationMs(ChronoUnit.MILLIS.between(start, LocalDateTime.now()))
                     .status(status)
                     .newCustomersCount(newCustomers)
