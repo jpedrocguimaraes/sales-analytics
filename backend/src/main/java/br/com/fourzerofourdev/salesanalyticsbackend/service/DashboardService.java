@@ -132,6 +132,7 @@ public class DashboardService {
         Optional<ServerStatusSnapshot> peakOptional = serverStatusRepository.findPeakSnapshot(serverId, start, end);
         Optional<ServerStatusSnapshot> floorOptional = serverStatusRepository.findFloorSnapshot(serverId, start, end);
         Double averagePlayers = serverStatusRepository.findAveragePlayers(serverId, start, end);
+
         long totalSnapshots = serverStatusRepository.countByServerIdAndTimestampBetween(serverId, start, end);
         long onlineSnapshots = serverStatusRepository.countByServerIdAndOnlineTrueAndTimestampBetween(serverId, start, end);
 
@@ -148,15 +149,28 @@ public class DashboardService {
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM HH:mm");
 
-        for(ServerStatusSnapshot snapshot : history) {
-            labels.add(snapshot.getTimestamp().format(formatter));
+        for(int i = 0; i < history.size(); i++) {
+            ServerStatusSnapshot current = history.get(i);
+            labels.add(current.getTimestamp().format(formatter));
 
-            if(snapshot.isOnline()) {
-                onlineData.add(snapshot.getOnlinePlayers());
+            if(current.isOnline()) {
+                onlineData.add(current.getOnlinePlayers());
                 offlineData.add(null);
             } else {
                 onlineData.add(null);
                 offlineData.add(0);
+            }
+
+            if(i < history.size() - 1) {
+                ServerStatusSnapshot next = history.get(i + 1);
+                long minutesDiff = Duration.between(current.getTimestamp(), next.getTimestamp()).toMinutes();
+
+                if(minutesDiff > 10) {
+                    LocalDateTime gapTime = current.getTimestamp().plusMinutes(5);
+                    labels.add(gapTime.format(formatter));
+                    onlineData.add(null);
+                    offlineData.add(null);
+                }
             }
         }
 
