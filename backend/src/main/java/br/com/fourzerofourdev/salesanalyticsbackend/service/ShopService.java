@@ -2,12 +2,19 @@ package br.com.fourzerofourdev.salesanalyticsbackend.service;
 
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.CategoryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.ProductDTO;
+import br.com.fourzerofourdev.salesanalyticsbackend.dto.ProductSaleHistoryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.MonitoredServer;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.ProductCategory;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.ServerType;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.MonitoredServerRepository;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.ProductCategoryRepository;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.ProductRepository;
+import br.com.fourzerofourdev.salesanalyticsbackend.repository.SalesItemRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.JpaSort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,11 +29,13 @@ public class ShopService {
     private final ProductRepository productRepository;
     private final ProductCategoryRepository productCategoryRepository;
     private final MonitoredServerRepository monitoredServerRepository;
+    private final SalesItemRepository salesItemRepository;
 
-    public ShopService(ProductRepository productRepository, ProductCategoryRepository productCategoryRepository, MonitoredServerRepository monitoredServerRepository) {
+    public ShopService(ProductRepository productRepository, ProductCategoryRepository productCategoryRepository, MonitoredServerRepository monitoredServerRepository, SalesItemRepository salesItemRepository) {
         this.productRepository = productRepository;
         this.productCategoryRepository = productCategoryRepository;
         this.monitoredServerRepository = monitoredServerRepository;
+        this.salesItemRepository = salesItemRepository;
     }
 
     @Transactional(readOnly = true)
@@ -60,6 +69,43 @@ public class ShopService {
         result.sort((a, b) -> Double.compare(b.totalCategoryRevenue(), a.totalCategoryRevenue()));
 
         return result;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProductSaleHistoryDTO> getProductHistory(Long serverId, Long productId, Pageable pageable) {
+        Sort originalSort = pageable.getSort();
+        Sort newSort = Sort.unsorted();
+
+        if(originalSort.isSorted()) {
+            for(Sort.Order order : originalSort) {
+                String property = order.getProperty();
+                Sort.Direction direction = order.getDirection();
+
+                String jpqlProperty = switch(property) {
+                    case "username", "player" -> "t.customer.username";
+                    case "quantity" -> "i.quantity";
+                    case "unitPrice" -> "i.unitPrice";
+                    case "totalPrice" -> "(i.quantity * i.unitPrice)";
+                    default -> "t.timestamp";
+                };
+
+                if(newSort.isUnsorted()) {
+                    newSort = JpaSort.unsafe(direction, jpqlProperty);
+                } else {
+                    newSort = newSort.and(JpaSort.unsafe(direction, jpqlProperty));
+                }
+            }
+        } else {
+            newSort = JpaSort.unsafe(Sort.Direction.DESC, "t.timestamp");
+        }
+
+        Pageable newPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                newSort
+        );
+
+        return salesItemRepository.findSalesHistoryByProduct(productId, serverId, newPageable);
     }
 
     private ProductDTO enrichLink(ProductDTO product, MonitoredServer server) {
