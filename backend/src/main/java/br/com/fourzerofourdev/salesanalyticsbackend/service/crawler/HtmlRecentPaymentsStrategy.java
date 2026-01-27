@@ -23,25 +23,37 @@ import java.util.regex.Pattern;
 public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HtmlRecentPaymentsStrategy.class);
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     private static final String SIGNATURE_SEPARATOR = ";;;";
 
     private final CustomerRepository customerRepository;
     private final SalesTransactionRepository salesTransactionRepository;
     private final LeaderboardSnapshotRepository leaderboardSnapshotRepository;
     private final MonitoredServerRepository monitoredServerRepository;
+    private final ProductRepository productRepository;
+    private final ProductCategoryRepository productCategoryRepository;
 
     private final Map<String, Double> productPriceCache = new ConcurrentHashMap<>();
     private final Map<Long, LocalDateTime> lastCatalogUpdate = new ConcurrentHashMap<>();
 
-    public HtmlRecentPaymentsStrategy(CustomerRepository customerRepository, SalesTransactionRepository salesTransactionRepository, LeaderboardSnapshotRepository leaderboardSnapshotRepository, ExecutionLogRepository executionLogRepository, MonitoredServerRepository monitoredServerRepository) {
+    public HtmlRecentPaymentsStrategy(CustomerRepository customerRepository,
+                                      SalesTransactionRepository salesTransactionRepository,
+                                      LeaderboardSnapshotRepository leaderboardSnapshotRepository,
+                                      ExecutionLogRepository executionLogRepository,
+                                      MonitoredServerRepository monitoredServerRepository,
+                                      ProductRepository productRepository,
+                                      ProductCategoryRepository productCategoryRepository
+    ) {
         super(executionLogRepository);
         this.customerRepository = customerRepository;
         this.salesTransactionRepository = salesTransactionRepository;
         this.leaderboardSnapshotRepository = leaderboardSnapshotRepository;
         this.monitoredServerRepository = monitoredServerRepository;
+        this.productRepository = productRepository;
+        this.productCategoryRepository = productCategoryRepository;
     }
 
-    private record PendingTransaction(String username, double amount, String signature) {}
+    private record PendingTransaction(String username, double amount, String signature, List<SalesItem> items) {}
 
     @Override
     public boolean supports(ServerType type) {
@@ -62,7 +74,7 @@ public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
             updatePriceCatalogIfNeeded(server);
 
             Document document = Jsoup.connect(server.getSalesUrl())
-                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .userAgent(USER_AGENT)
                     .timeout(30000)
                     .get();
 
@@ -75,7 +87,7 @@ public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
                 String tooltipData = element.attr("data-original-title");
                 if(tooltipData.isEmpty()) tooltipData = element.attr("title");
 
-                Optional<PendingTransaction> transactionOptional = parseTooltip(tooltipData);
+                Optional<PendingTransaction> transactionOptional = parseTooltip(tooltipData, server);
 
                 if(transactionOptional.isPresent()) {
                     currentTransactions.add(transactionOptional.get());
@@ -140,68 +152,152 @@ public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
             lastCatalogUpdate.put(server.getId(), LocalDateTime.now());
 
             try {
-                updatePriceCatalog(server.getSalesUrl(), server.getName());
+                updatePriceCatalog(server.getSalesUrl(), server);
             } catch(Exception exception) {
                 LOGGER.error("[{}] Failed to update price catalog.", server.getName(), exception);
             }
         }
     }
 
-    private void updatePriceCatalog(String salesUrl, String serverName) throws IOException {
+    private void updatePriceCatalog(String salesUrl, MonitoredServer server) throws IOException {
         Document document = Jsoup.connect(salesUrl)
-                .userAgent("Mozilla/5.0")
-                .timeout(30000)
+                .userAgent(USER_AGENT)
+                .timeout(45000)
                 .get();
 
         Elements categoryLinks = document.select(".navigation__item a[href*='/category/']");
 
         for(Element link : categoryLinks) {
+            String categoryName = link.text().trim();
             String categoryUrl = link.attr("abs:href");
+            Long categoryExternalId = extractedIdFromUrl(link.attr("href"));
+
+            ProductCategory category = null;
+            if(categoryExternalId != null) {
+                category = productCategoryRepository.findByExternalIdAndServer(categoryExternalId, server)
+                        .orElse(null);
+            }
+
+            if(category == null) {
+                category = productCategoryRepository.findByNameAndServer(categoryName, server)
+                        .orElseGet(() -> productCategoryRepository.save(ProductCategory.builder()
+                                .name(categoryName)
+                                .externalId(categoryExternalId)
+                                .server(server)
+                                .build()));
+
+                if(categoryExternalId != null && category.getExternalId() == null) {
+                    category.setExternalId(categoryExternalId);
+                    productCategoryRepository.save(category);
+                }
+            }
 
             try {
-                Document categoryDocument = Jsoup.connect(categoryUrl).get();
+                Thread.sleep(1000);
+                Document categoryDocument = Jsoup.connect(categoryUrl).userAgent(USER_AGENT).timeout(45000).ignoreHttpErrors(true).get();
                 Elements products = categoryDocument.select(".gridpackage");
 
-                for(Element product : products) {
-                    String productName = product.select(".gridpackage__name").text().trim();
+                for(Element productElement : products) {
+                    String productName = productElement.select(".gridpackage__name").text().trim();
+                    Double price = extractPrice(productElement);
+                    Long productExternalId = extractProductId(productElement);
 
-                    Element priceElement = product.select(".gridpackage__price").first();
-                    if(priceElement != null) {
-                        priceElement.select("del").remove();
+                    if(price != null) {
+                        productPriceCache.put(productName, price);
 
-                        String priceText = priceElement.text()
-                                .replaceAll("[^0-9.,]", "")
-                                .replaceAll(",", ".");
-
-                        try {
-                            if(!priceText.isEmpty()) {
-                                productPriceCache.put(productName, Double.parseDouble(priceText));
-                            }
-                        } catch(NumberFormatException exception) {
-                            LOGGER.warn("[{}] Invalid price for {}: {}", serverName, productName, priceText);
+                        Product product = null;
+                        if(productExternalId != null) {
+                            product = productRepository.findByExternalIdAndServer(productExternalId, server)
+                                    .orElse(null);
                         }
+
+                        if(product == null) {
+                            product = productRepository.findByNameAndServer(productName, server)
+                                    .orElse(null);
+
+                            if(product != null && productExternalId != null) {
+                                product.setExternalId(productExternalId);
+                            }
+                        }
+
+                        if(product == null) {
+                            product = Product.builder()
+                                    .name(productName)
+                                    .externalId(productExternalId)
+                                    .server(server)
+                                    .build();
+                        }
+
+                        product.setCurrentPrice(price);
+                        product.setCategory(category);
+                        product.setName(productName);
+                        productRepository.save(product);
                     }
                 }
             } catch(Exception exception) {
-                LOGGER.error("[{}] Error fetching category {}", serverName, categoryUrl, exception);
+                LOGGER.error("[{}] Error fetching category {}", server.getName(), categoryUrl, exception);
             }
         }
 
-        LOGGER.debug("[{}] Price catalog updated. Items: {}", serverName, productPriceCache.size());
+        LOGGER.debug("[{}] Price catalog updated. Items: {}", server.getName(), productPriceCache.size());
     }
 
-    private Optional<PendingTransaction> parseTooltip(String htmlContent) {
+    private Long extractedIdFromUrl(String url) {
+        try {
+            return Long.parseLong(url.replaceAll("\\D", ""));
+        } catch(Exception exception) {
+            return null;
+        }
+    }
+
+    private Double extractPrice(Element productElement) {
+        Element priceElement = productElement.select(".gridpackage__price").first();
+
+        if(priceElement != null) {
+            priceElement.select("del").remove();
+            String priceText = priceElement.text().replaceAll("[^0-9.,]", "").replaceAll(",", ".");
+
+            try {
+                if(!priceText.isEmpty()) return Double.parseDouble(priceText);
+            } catch(NumberFormatException exception) {
+                LOGGER.warn("[{}] Invalid price found: {}", productElement.select(".gridpackage__name").text(), priceText);
+            }
+        }
+
+        return null;
+    }
+
+    private Long extractProductId(Element productElement) {
+        Element buyButton = productElement.select("button[atom-package-id]").first();
+
+        if(buyButton != null) {
+            try {
+                return Long.parseLong(buyButton.attr("atom-package-id"));
+            } catch(Exception exception) {
+                LOGGER.warn("[{}] Invalid product id found: {}", productElement.select(".gridpackage__name").text(), buyButton.attr("atom-package-id"));
+            }
+        }
+
+        Element imageLink = productElement.select("a[data-remote^='/package/']").first();
+
+        if(imageLink != null) {
+            return extractedIdFromUrl(imageLink.attr("data-remote"));
+        }
+
+        return null;
+    }
+
+    private Optional<PendingTransaction> parseTooltip(String htmlContent, MonitoredServer server) {
         if(htmlContent == null || htmlContent.isEmpty()) return Optional.empty();
 
         Document document = Jsoup.parseBodyFragment(htmlContent);
         String username = document.select("b").text().trim();
-        String fullText = document.body().text();
-        String itemsText = fullText.replace(username, "").trim();
+        String itemsText = document.body().text().replace(username, "").trim();
 
         double totalAmount = 0.0;
         StringBuilder signatureBuilder = new StringBuilder().append(username).append("|");
-
         boolean hasValidItems = false;
+        List<SalesItem> foundItems = new ArrayList<>();
 
         String[] items = itemsText.split(",");
         for(String item : items) {
@@ -213,13 +309,27 @@ public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
                 int quantity = Integer.parseInt(matcher.group(1));
                 String productName = matcher.group(2).trim();
                 Double price = productPriceCache.getOrDefault(productName, 0.0);
+
+                if(!productPriceCache.containsKey(productName)) {
+                    LOGGER.warn("[{}] Missing price for '{}'. Assuming 0.0", server.getName(), productName);
+                }
+
                 totalAmount += price * quantity;
                 signatureBuilder.append(quantity).append("x").append(productName).append("|");
+
+                Product product = productRepository.findByNameAndServer(productName, server).orElse(null);
+
+                foundItems.add(SalesItem.builder()
+                        .product(product)
+                        .productName(productName)
+                        .quantity(quantity)
+                        .unitPrice(price)
+                        .build());
             }
         }
 
         if(hasValidItems) {
-            return Optional.of(new PendingTransaction(username, totalAmount, signatureBuilder.toString()));
+            return Optional.of(new PendingTransaction(username, totalAmount, signatureBuilder.toString(), foundItems));
         }
 
         return Optional.empty();
@@ -256,12 +366,18 @@ public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
             customerRepository.save(customer);
         }
 
-        salesTransactionRepository.save(SalesTransaction.builder()
+        SalesTransaction newTransaction = SalesTransaction.builder()
                 .customer(customer)
                 .server(server)
                 .amount(transaction.amount)
                 .timestamp(now)
-                .build());
+                .build();
+
+        for(SalesItem item : transaction.items()) {
+            newTransaction.addItem(item);
+        }
+
+        salesTransactionRepository.save(newTransaction);
 
         Optional<LeaderboardSnapshot> lastSnapshot = leaderboardSnapshotRepository.findTopByCustomerOrderBySnapshotTimeDesc(customer);
         double prevTotal = lastSnapshot.map(LeaderboardSnapshot::getTotalAccumulated).orElse(0.0);
