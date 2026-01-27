@@ -10,5 +10,5 @@ public interface LeaderboardSnapshotRepository extends JpaRepository<Leaderboard
 
     Optional<LeaderboardSnapshot> findTopByCustomerOrderBySnapshotTimeDesc(Customer customer);
 
-    Optional<LeaderboardSnapshot> findTopByOrderBySnapshotTimeDesc();
+    Optional<LeaderboardSnapshot> findTopByServerIdOrderBySnapshotTimeDesc(Long serverId);
 }

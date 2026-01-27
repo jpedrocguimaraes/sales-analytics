@@ -26,11 +26,11 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CustomerSummaryDTO> getAllCustomers(Pageable pageable) {
+    public Page<CustomerSummaryDTO> getAllCustomers(long serverId, Pageable pageable) {
         Sort originalSort = pageable.getSort();
 
         if(originalSort.isUnsorted()) {
-            return customerRepository.findAllCustomerSummaries(pageable);
+            return customerRepository.findAllCustomerSummariesByServer(serverId, pageable);
         }
 
         Sort.Order order = originalSort.iterator().next();
@@ -50,11 +50,11 @@ public class CustomerService {
                 JpaSort.unsafe(direction, jpqlProperty)
         );
 
-        return customerRepository.findAllCustomerSummaries(newPageable);
+        return customerRepository.findAllCustomerSummariesByServer(serverId, newPageable);
     }
 
     @Transactional(readOnly = true)
-    public List<CustomerTransactionHistoryDTO> getCustomerHistory(String username) {
-        return salesTransactionRepository.findHistoryByUsername(username);
+    public List<CustomerTransactionHistoryDTO> getCustomerHistory(Long serverId, String username) {
+        return salesTransactionRepository.findHistoryByServerAndUsername(serverId, username);
     }
 }

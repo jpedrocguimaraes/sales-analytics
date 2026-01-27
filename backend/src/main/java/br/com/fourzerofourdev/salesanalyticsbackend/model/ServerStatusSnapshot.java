@@ -16,6 +16,13 @@ public class ServerStatusSnapshot {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "server_id", nullable = false)
+    private MonitoredServer server;
+
+    @Column(nullable = false)
+    private boolean online;
+
     private int onlinePlayers;
 
     @Column(nullable = false)

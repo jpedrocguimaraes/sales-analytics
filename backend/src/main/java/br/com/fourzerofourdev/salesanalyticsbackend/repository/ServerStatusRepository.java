@@ -11,16 +11,20 @@ import java.util.Optional;
 
 public interface ServerStatusRepository extends JpaRepository<ServerStatusSnapshot, Long> {
 
-    List<ServerStatusSnapshot> findAllByTimestampBetweenOrderByTimestampAsc(LocalDateTime start, LocalDateTime end);
+    List<ServerStatusSnapshot> findAllByServerIdAndTimestampBetweenOrderByTimestampAsc(Long serverId, LocalDateTime start, LocalDateTime end);
 
-    @Query("SELECT s FROM ServerStatusSnapshot s WHERE s.timestamp BETWEEN :start AND :end ORDER BY s.onlinePlayers DESC LIMIT 1")
-    ServerStatusSnapshot findPeakSnapshot(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    @Query("SELECT s FROM ServerStatusSnapshot s WHERE s.server.id = :serverId AND s.timestamp BETWEEN :start AND :end ORDER BY s.onlinePlayers DESC LIMIT 1")
+    Optional<ServerStatusSnapshot> findPeakSnapshot(@Param("serverId") Long serverId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
-    @Query("SELECT s FROM ServerStatusSnapshot s WHERE s.timestamp BETWEEN :start AND :end ORDER BY s.onlinePlayers ASC LIMIT 1")
-    ServerStatusSnapshot findFloorSnapshot(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    @Query("SELECT s FROM ServerStatusSnapshot s WHERE s.server.id = :serverId AND s.online = true AND s.onlinePlayers > 0 AND s.timestamp BETWEEN :start AND :end ORDER BY s.onlinePlayers ASC LIMIT 1")
+    Optional<ServerStatusSnapshot> findFloorSnapshot(@Param("serverId") Long serverId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
-    @Query("SELECT AVG(s.onlinePlayers) FROM ServerStatusSnapshot s WHERE s.timestamp BETWEEN :start AND :end")
-    Double findAveragePlayers(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    @Query("SELECT AVG(s.onlinePlayers) FROM ServerStatusSnapshot s WHERE s.server.id = :serverId AND s.online = true AND s.timestamp BETWEEN :start AND :end")
+    Double findAveragePlayers(@Param("serverId") Long serverId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
-    Optional<ServerStatusSnapshot> findTopByOrderByTimestampDesc();
+    Optional<ServerStatusSnapshot> findTopByServerIdOrderByTimestampDesc(Long serverId);
+
+    long countByServerIdAndTimestampBetween(Long serverId, LocalDateTime start, LocalDateTime end);
+
+    long countByServerIdAndOnlineTrueAndTimestampBetween(Long serverId, LocalDateTime start, LocalDateTime end);
 }

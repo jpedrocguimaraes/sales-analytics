@@ -4,5 +4,5 @@ import java.util.List;
 
 public record ChartDataDTO(
         List<String> labels,
-        List<Number> data
+        List<ChartSeriesDTO> series
 ) {}

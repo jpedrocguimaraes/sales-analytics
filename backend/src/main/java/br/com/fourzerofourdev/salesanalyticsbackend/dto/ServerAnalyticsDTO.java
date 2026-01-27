@@ -5,5 +5,6 @@ public record ServerAnalyticsDTO(
         Integer minPlayers,
         String peakTime,
         Double averagePlayers,
+        Double uptimePercentage,
         ChartDataDTO chartData
 ) {}

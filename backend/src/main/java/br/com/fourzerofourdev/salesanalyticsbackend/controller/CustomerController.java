@@ -22,12 +22,12 @@ public class CustomerController {
     }
 
     @GetMapping
-    public Page<CustomerSummaryDTO> getAllCustomers(@PageableDefault(sort = "username") Pageable pageable) {
-        return customerService.getAllCustomers(pageable);
+    public Page<CustomerSummaryDTO> getAllCustomers(@RequestParam Long serverId, @PageableDefault(sort = "totalSpent") Pageable pageable) {
+        return customerService.getAllCustomers(serverId, pageable);
     }
 
     @GetMapping("/{username}/history")
-    public List<CustomerTransactionHistoryDTO> getCustomerHistory(@PathVariable String username) {
-        return customerService.getCustomerHistory(username);
+    public List<CustomerTransactionHistoryDTO> getCustomerHistory(@PathVariable String username, @RequestParam Long serverId) {
+        return customerService.getCustomerHistory(serverId, username);
     }
 }

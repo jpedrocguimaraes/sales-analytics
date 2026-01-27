@@ -1,15 +1,13 @@
 package br.com.fourzerofourdev.salesanalyticsbackend.controller;
 
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.ExecutionLogDTO;
+import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.LogType;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.ExecutionLogRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/system-logs")
@@ -23,8 +21,8 @@ public class SystemLogController {
     }
 
     @GetMapping
-    public Page<ExecutionLogDTO> getLogs(@PageableDefault(size = 20, sort = "startTime", direction = Sort.Direction.DESC) Pageable pageable) {
-        return executionLogRepository.findAllLogs(pageable)
+    public Page<ExecutionLogDTO> getLogs(@RequestParam Long serverId, @RequestParam(required = false) LogType type, @PageableDefault(size = 20, sort = "startTime", direction = Sort.Direction.DESC) Pageable pageable) {
+        return executionLogRepository.findLogsByServerIdAndType(serverId, type, pageable)
                 .map(log -> new ExecutionLogDTO(
                         log.getId(),
                         log.getStartTime(),

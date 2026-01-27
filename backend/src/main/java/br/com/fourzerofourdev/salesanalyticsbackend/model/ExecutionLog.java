@@ -18,6 +18,10 @@ public class ExecutionLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "server_id", nullable = false)
+    private MonitoredServer server;
+
     private LocalDateTime startTime;
 
     private LocalDateTime endTime;

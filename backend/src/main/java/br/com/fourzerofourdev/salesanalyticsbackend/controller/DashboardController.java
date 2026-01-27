@@ -26,42 +26,47 @@ public class DashboardController {
 
     @GetMapping("/summary")
     public DashboardSummaryDTO getSummary(
+            @RequestParam Long serverId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
     ) {
-        return dashboardService.getSummary(resolveStart(start), resolveEnd(end));
+        return dashboardService.getSummary(serverId, resolveStart(start), resolveEnd(end));
     }
 
     @GetMapping("/ranking")
     public List<TopDonorDTO> getRanking(
+            @RequestParam Long serverId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
     ) {
-        return dashboardService.getRanking(resolveStart(start), resolveEnd(end));
+        return dashboardService.getRanking(serverId, resolveStart(start), resolveEnd(end));
     }
 
     @GetMapping("/chart/hourly")
     public ChartDataDTO getHourlyChart(
+            @RequestParam Long serverId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
     ) {
-        return dashboardService.getHourlySales(resolveStart(start), resolveEnd(end));
+        return dashboardService.getHourlySales(serverId, resolveStart(start), resolveEnd(end));
     }
 
     @GetMapping("/whales")
     public Map<String, Long> getWhales(
+            @RequestParam Long serverId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
     ) {
-        return dashboardService.getWhaleAnalysis(resolveStart(start), resolveEnd(end));
+        return dashboardService.getWhaleAnalysis(serverId, resolveStart(start), resolveEnd(end));
     }
 
     @GetMapping("/server-status")
     public ServerAnalyticsDTO getServerStatus(
+            @RequestParam Long serverId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
     ) {
-        return dashboardService.getServerAnalytics(resolveStart(start), resolveEnd(end));
+        return dashboardService.getServerAnalytics(serverId, resolveStart(start), resolveEnd(end));
     }
 
     private LocalDateTime resolveStart(LocalDateTime date) {
