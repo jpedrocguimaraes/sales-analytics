@@ -36,4 +36,6 @@ public interface SalesTransactionRepository extends JpaRepository<SalesTransacti
         AND t.server.id = :serverId
     """)
     Page<SalesTransaction> findHistoryByServerAndUsername(@Param("serverId") Long serverId, @Param("username") String username, Pageable pageable);
+
+    Page<SalesTransaction> findAllByServerId(Long serverId, Pageable pageable);
 }
