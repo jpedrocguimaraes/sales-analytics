@@ -3,6 +3,8 @@ package br.com.fourzerofourdev.salesanalyticsbackend.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "product_categories", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"name", "server_id"})
@@ -25,4 +27,10 @@ public class ProductCategory {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "server_id", nullable = false)
     private MonitoredServer server;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
+
+    private LocalDateTime lastScrapedAt;
 }

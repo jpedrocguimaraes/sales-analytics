@@ -8,5 +8,6 @@ public record ProductDTO(
         Long categoryId,
         Long totalSalesCount,
         Double totalRevenue,
-        String directLink
+        String directLink,
+        boolean active
 ) {}

@@ -2,14 +2,12 @@ package br.com.fourzerofourdev.salesanalyticsbackend.service;
 
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.CategoryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.ProductDTO;
+import br.com.fourzerofourdev.salesanalyticsbackend.dto.ProductPriceHistoryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.ProductSaleHistoryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.MonitoredServer;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.ProductCategory;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.ServerType;
-import br.com.fourzerofourdev.salesanalyticsbackend.repository.MonitoredServerRepository;
-import br.com.fourzerofourdev.salesanalyticsbackend.repository.ProductCategoryRepository;
-import br.com.fourzerofourdev.salesanalyticsbackend.repository.ProductRepository;
-import br.com.fourzerofourdev.salesanalyticsbackend.repository.SalesItemRepository;
+import br.com.fourzerofourdev.salesanalyticsbackend.repository.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,12 +28,14 @@ public class ShopService {
     private final ProductCategoryRepository productCategoryRepository;
     private final MonitoredServerRepository monitoredServerRepository;
     private final SalesItemRepository salesItemRepository;
+    private final ProductPriceHistoryRepository productPriceHistoryRepository;
 
-    public ShopService(ProductRepository productRepository, ProductCategoryRepository productCategoryRepository, MonitoredServerRepository monitoredServerRepository, SalesItemRepository salesItemRepository) {
+    public ShopService(ProductRepository productRepository, ProductCategoryRepository productCategoryRepository, MonitoredServerRepository monitoredServerRepository, SalesItemRepository salesItemRepository, ProductPriceHistoryRepository productPriceHistoryRepository) {
         this.productRepository = productRepository;
         this.productCategoryRepository = productCategoryRepository;
         this.monitoredServerRepository = monitoredServerRepository;
         this.salesItemRepository = salesItemRepository;
+        this.productPriceHistoryRepository = productPriceHistoryRepository;
     }
 
     @Transactional(readOnly = true)
@@ -62,6 +62,7 @@ public class ShopService {
                     category.getId(),
                     category.getName(),
                     categoryTotal,
+                    category.isActive(),
                     categoryProducts
             ));
         }
@@ -108,6 +109,17 @@ public class ShopService {
         return salesItemRepository.findSalesHistoryByProduct(productId, serverId, newPageable);
     }
 
+    @Transactional(readOnly = true)
+    public List<ProductPriceHistoryDTO> getProductPriceHistory(Long productId) {
+        return productPriceHistoryRepository.findAllByProductIdOrderByRecordedAtAsc(productId)
+                .stream()
+                .map(history -> new ProductPriceHistoryDTO(
+                        history.getPrice(),
+                        history.getRecordedAt()
+                ))
+                .toList();
+    }
+
     private ProductDTO enrichLink(ProductDTO product, MonitoredServer server) {
         String link = null;
 
@@ -127,7 +139,8 @@ public class ShopService {
                 product.categoryId(),
                 product.totalSalesCount(),
                 product.totalRevenue(),
-                link
+                link,
+                product.active()
         );
     }
 }

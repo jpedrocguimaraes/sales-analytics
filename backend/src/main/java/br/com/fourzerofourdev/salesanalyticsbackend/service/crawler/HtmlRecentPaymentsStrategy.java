@@ -32,6 +32,7 @@ public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
     private final MonitoredServerRepository monitoredServerRepository;
     private final ProductRepository productRepository;
     private final ProductCategoryRepository productCategoryRepository;
+    private final ProductPriceHistoryRepository productPriceHistoryRepository;
 
     private final Map<String, Double> productPriceCache = new ConcurrentHashMap<>();
     private final Map<Long, LocalDateTime> lastCatalogUpdate = new ConcurrentHashMap<>();
@@ -42,7 +43,8 @@ public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
                                       ExecutionLogRepository executionLogRepository,
                                       MonitoredServerRepository monitoredServerRepository,
                                       ProductRepository productRepository,
-                                      ProductCategoryRepository productCategoryRepository
+                                      ProductCategoryRepository productCategoryRepository,
+                                      ProductPriceHistoryRepository productPriceHistoryRepository
     ) {
         super(executionLogRepository);
         this.customerRepository = customerRepository;
@@ -51,6 +53,7 @@ public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
         this.monitoredServerRepository = monitoredServerRepository;
         this.productRepository = productRepository;
         this.productCategoryRepository = productCategoryRepository;
+        this.productPriceHistoryRepository = productPriceHistoryRepository;
     }
 
     private record PendingTransaction(String username, double amount, String signature, List<SalesItem> items) {}
@@ -160,6 +163,8 @@ public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
     }
 
     private void updatePriceCatalog(String salesUrl, MonitoredServer server) throws IOException {
+        LocalDateTime now = LocalDateTime.now();
+
         Document document = Jsoup.connect(salesUrl)
                 .userAgent(USER_AGENT)
                 .timeout(45000)
@@ -192,6 +197,10 @@ public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
                 }
             }
 
+            category.setActive(true);
+            category.setLastScrapedAt(now);
+            productCategoryRepository.save(category);
+
             try {
                 Thread.sleep(1000);
                 Document categoryDocument = Jsoup.connect(categoryUrl).userAgent(USER_AGENT).timeout(45000).ignoreHttpErrors(true).get();
@@ -220,18 +229,42 @@ public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
                             }
                         }
 
+                        boolean isNewPrice = false;
+
                         if(product == null) {
                             product = Product.builder()
                                     .name(productName)
                                     .externalId(productExternalId)
                                     .server(server)
+                                    .active(true)
+                                    .lastScrapedAt(now)
+                                    .currentPrice(price)
                                     .build();
+
+                            isNewPrice = true;
+                        } else {
+                            if(!Objects.equals(product.getCurrentPrice(), price)) {
+                                isNewPrice = true;
+                            }
+
+                            product.setCurrentPrice(price);
+                            product.setName(productName);
+                            product.setCategory(category);
+                            product.setActive(true);
+                            product.setLastScrapedAt(now);
                         }
 
-                        product.setCurrentPrice(price);
-                        product.setCategory(category);
-                        product.setName(productName);
                         productRepository.save(product);
+
+                        if(isNewPrice) {
+                            productPriceHistoryRepository.save(ProductPriceHistory.builder()
+                                    .product(product)
+                                    .price(price)
+                                    .recordedAt(now)
+                                    .build());
+
+                            LOGGER.info("[{}] Price change detected for '{}': R$ {}", server.getName(), productName, price);
+                        }
                     }
                 }
             } catch(Exception exception) {
@@ -239,6 +272,9 @@ public class HtmlRecentPaymentsStrategy extends AbstractSalesCrawlerStrategy {
             }
         }
 
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(10);
+        productRepository.markProductsAsInactiveIfOlderThan(server.getId(), threshold);
+        productCategoryRepository.markCategoriesAsInactiveIfOlderThan(server.getId(), threshold);
         LOGGER.debug("[{}] Price catalog updated. Items: {}", server.getName(), productPriceCache.size());
     }
 
