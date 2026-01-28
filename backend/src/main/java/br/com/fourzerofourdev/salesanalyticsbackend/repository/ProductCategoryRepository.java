@@ -18,7 +18,8 @@ public interface ProductCategoryRepository extends JpaRepository<ProductCategory
 
     Optional<ProductCategory> findByNameAndServer(String name, MonitoredServer server);
 
-    List<ProductCategory> findByServerIdOrderByNameAsc(Long serverId);
+    @Query("SELECT c FROM ProductCategory c WHERE c.server.id = :serverId AND (:active IS NULL OR c.active = :active) ORDER BY c.name ASC")
+    List<ProductCategory> findByServerIdAndStatus(@Param("serverId") Long serverId, @Param("active") Boolean active);
 
     @Modifying
     @Transactional

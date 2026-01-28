@@ -34,10 +34,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         FROM Product p
         LEFT JOIN SalesItem si ON si.product = p
         WHERE p.server.id = :serverId
+        AND (:active IS NULL OR p.active = :active)
         GROUP BY p.id, p.name, p.currentPrice, p.externalId, p.category.id, p.active
         ORDER BY COALESCE(SUM(si.unitPrice * si.quantity), 0.0) DESC
     """)
-    List<ProductDTO> findProductsWithStats(@Param("serverId") Long serverId);
+    List<ProductDTO> findProductsWithStats(@Param("serverId") Long serverId, @Param("active") Boolean active);
 
     @Modifying
     @Transactional

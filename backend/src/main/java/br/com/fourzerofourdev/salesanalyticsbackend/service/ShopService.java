@@ -7,6 +7,7 @@ import br.com.fourzerofourdev.salesanalyticsbackend.dto.ProductSaleHistoryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.MonitoredServer;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.ProductCategory;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.ServerType;
+import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.ShopFilterType;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -39,12 +40,18 @@ public class ShopService {
     }
 
     @Transactional(readOnly = true)
-    public List<CategoryDTO> getShopOverview(Long serverId) {
+    public List<CategoryDTO> getShopOverview(Long serverId, ShopFilterType filterType) {
+        Boolean activeFilter = switch (filterType) {
+            case ACTIVE -> true;
+            case INACTIVE -> false;
+            case ALL -> null;
+        };
+
         MonitoredServer server = monitoredServerRepository.findById(serverId).orElseThrow();
 
-        List<ProductCategory> categories = productCategoryRepository.findByServerIdOrderByNameAsc(serverId);
+        List<ProductCategory> categories = productCategoryRepository.findByServerIdAndStatus(serverId, activeFilter);
 
-        List<ProductDTO> products = productRepository.findProductsWithStats(serverId);
+        List<ProductDTO> products = productRepository.findProductsWithStats(serverId, activeFilter);
 
         Map<Long, List<ProductDTO>> productsByCategory = products.stream()
                 .filter(product -> product.categoryId() != null)

@@ -3,6 +3,7 @@ package br.com.fourzerofourdev.salesanalyticsbackend.controller;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.CategoryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.ProductPriceHistoryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.ProductSaleHistoryDTO;
+import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.ShopFilterType;
 import br.com.fourzerofourdev.salesanalyticsbackend.service.ShopService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,8 +25,8 @@ public class ShopController {
     }
 
     @GetMapping
-    public List<CategoryDTO> getShopOverview(@RequestParam Long serverId) {
-        return shopService.getShopOverview(serverId);
+    public List<CategoryDTO> getShopOverview(@RequestParam Long serverId, @RequestParam(defaultValue = "ACTIVE") ShopFilterType filter) {
+        return shopService.getShopOverview(serverId, filter);
     }
 
     @GetMapping("/products/{productId}/history")
