@@ -1,5 +1,6 @@
 package br.com.fourzerofourdev.salesanalyticsbackend.model;
 
+import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.CurrencyType;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.ServerType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -21,6 +22,11 @@ public class MonitoredServer {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ServerType type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private CurrencyType currency = CurrencyType.BRL;
 
     @Column(nullable = false)
     private String salesUrl;

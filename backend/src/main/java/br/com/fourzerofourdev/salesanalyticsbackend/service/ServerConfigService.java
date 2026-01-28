@@ -2,6 +2,7 @@ package br.com.fourzerofourdev.salesanalyticsbackend.service;
 
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.ServerConfigDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.MonitoredServer;
+import br.com.fourzerofourdev.salesanalyticsbackend.model.enums.CurrencyType;
 import br.com.fourzerofourdev.salesanalyticsbackend.repository.MonitoredServerRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class ServerConfigService {
         MonitoredServer server = MonitoredServer.builder()
                 .name(serverConfigDTO.name())
                 .type(serverConfigDTO.type())
+                .currency(serverConfigDTO.currency() != null ? serverConfigDTO.currency() : CurrencyType.BRL)
                 .salesUrl(serverConfigDTO.salesUrl())
                 .serverAddress(serverConfigDTO.serverAddress())
                 .active(serverConfigDTO.active())
@@ -55,6 +57,7 @@ public class ServerConfigService {
 
         server.setName(serverConfigDTO.name());
         server.setType(serverConfigDTO.type());
+        server.setCurrency(serverConfigDTO.currency());
         server.setSalesUrl(serverConfigDTO.salesUrl());
         server.setServerAddress(serverConfigDTO.serverAddress());
         server.setActive(serverConfigDTO.active());
@@ -72,6 +75,7 @@ public class ServerConfigService {
                 server.getId(),
                 server.getName(),
                 server.getType(),
+                server.getCurrency(),
                 server.getSalesUrl(),
                 server.getServerAddress(),
                 server.isActive()
