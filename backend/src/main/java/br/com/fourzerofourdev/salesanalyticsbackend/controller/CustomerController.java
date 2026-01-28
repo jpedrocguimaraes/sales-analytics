@@ -5,10 +5,9 @@ import br.com.fourzerofourdev.salesanalyticsbackend.dto.CustomerTransactionHisto
 import br.com.fourzerofourdev.salesanalyticsbackend.service.CustomerService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/customers")
@@ -27,7 +26,7 @@ public class CustomerController {
     }
 
     @GetMapping("/{username}/history")
-    public List<CustomerTransactionHistoryDTO> getCustomerHistory(@PathVariable String username, @RequestParam Long serverId) {
-        return customerService.getCustomerHistory(serverId, username);
+    public Page<CustomerTransactionHistoryDTO> getCustomerHistory(@PathVariable String username, @RequestParam Long serverId, @PageableDefault(sort = "timestamp", direction = Sort.Direction.DESC) Pageable pageable) {
+        return customerService.getCustomerHistory(serverId, username, pageable);
     }
 }

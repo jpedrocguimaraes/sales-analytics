@@ -1,10 +1,9 @@
 package br.com.fourzerofourdev.salesanalyticsbackend.repository;
 
-import br.com.fourzerofourdev.salesanalyticsbackend.dto.CustomerTransactionHistoryDTO;
 import br.com.fourzerofourdev.salesanalyticsbackend.dto.TopDonorDTO;
-import br.com.fourzerofourdev.salesanalyticsbackend.model.Customer;
-import br.com.fourzerofourdev.salesanalyticsbackend.model.MonitoredServer;
 import br.com.fourzerofourdev.salesanalyticsbackend.model.SalesTransaction;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,15 +31,9 @@ public interface SalesTransactionRepository extends JpaRepository<SalesTransacti
     List<SalesTransaction> findAllByServerIdAndTimestampBetweenOrderByTimestampAsc(Long serverId, LocalDateTime start, LocalDateTime end);
 
     @Query("""
-        SELECT new br.com.fourzerofourdev.salesanalyticsbackend.dto.CustomerTransactionHistoryDTO(
-            t.id, t.amount, t.timestamp
-        )
-        FROM SalesTransaction t
-        WHERE t.server.id = :serverId
-        AND t.customer.username = :username
-        ORDER BY t.timestamp DESC
+        SELECT t FROM SalesTransaction t
+        WHERE t.customer.username = :username
+        AND t.server.id = :serverId
     """)
-    List<CustomerTransactionHistoryDTO> findHistoryByServerAndUsername(@Param("serverId") Long serverId, @Param("username") String username);
-
-    boolean existsByCustomerAndAmountAndServerAndTimestampAfter(Customer customer, Double amount, MonitoredServer server, LocalDateTime timestamp);
+    Page<SalesTransaction> findHistoryByServerAndUsername(@Param("serverId") Long serverId, @Param("username") String username, Pageable pageable);
 }
